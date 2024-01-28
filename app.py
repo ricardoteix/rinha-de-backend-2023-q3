@@ -15,17 +15,11 @@ database_conn = {
     "password": "rinha",
     "port": 5432
 }
+conn = psycopg2.connect(**database_conn)
 
 
 @app.route('/pessoas', methods=['POST'])
 def post_pessoas() -> Response:
-    """
-    atributo	descrição
-    apelido	obrigatório, único, string de até 32 caracteres.
-    nome	obrigatório, string de até 100 caracteres.
-    nascimento	obrigatório, string para data no formato AAAA-MM-DD (ano, mês, dia).
-    stack	opcional, vetor de string com cada elemento sendo obrigatório e de até 32 caracteres.
-    """
 
     payload = json.loads(request.data)
 
@@ -60,7 +54,7 @@ def post_pessoas() -> Response:
     values = (nome, apelido, nascimento, stack)
 
     try:
-        conn = psycopg2.connect(**database_conn)
+
         cur = conn.cursor()
 
         query = """
@@ -86,7 +80,6 @@ def post_pessoas() -> Response:
             )
 
         cur.close()
-        conn.close()
 
         return Response(status=422)
 
@@ -111,7 +104,6 @@ def get_pessoas_id(id: str) -> Response:
         resultado = cur.fetchone()
 
         cur.close()
-        conn.close()
 
         pessoa = {
             "id": resultado[0],
@@ -161,7 +153,6 @@ def get_pessoas() -> Response:
         resultado = cur.fetchall()
 
         cur.close()
-        conn.close()
 
         pessoas: list = []
         for pessoa in resultado:
@@ -205,7 +196,6 @@ def get_contagem_pessoas() -> Response:
         resultado = cur.fetchone()
 
         cur.close()
-        conn.close()
 
         return Response(
             status=200,
@@ -214,9 +204,10 @@ def get_contagem_pessoas() -> Response:
                 'Content-Type': 'application/json'
             }
         )
-
     except Exception as err:
         return Response(status=500)
 
 
-app.run(host='0.0.0.0', debug=True, threaded=True, port=80)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', debug=False, threaded=False, port=80)
+

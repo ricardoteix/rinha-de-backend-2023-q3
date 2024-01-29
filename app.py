@@ -1,22 +1,28 @@
 import json
 from datetime import date, datetime
-from flask import Flask, Response, request
+from flask import Flask, Response, request, jsonify
 import psycopg2
 import uuid
+import os
+
+
+LOCAL = os.getenv('USE_HOST') == '1'
+API_PORT = os.getenv('API_PORT')
+if API_PORT is None:
+    print('####### ABORT: API_PORT', API_PORT)
+    exit()
 
 app = Flask(__name__)
-
 app.url_map.strict_slashes = False
 
 database_conn = {
-    "host": "postgres",
+    "host": "127.0.0.1" if LOCAL else "postgres",
     "database": "rinha",
     "user": "rinha",
-    "password": "rinha",
-    "port": 5432
+    "password": "rinha"
 }
 conn = psycopg2.connect(**database_conn)
-
+# cur = conn.cursor()
 
 @app.route('/pessoas', methods=['POST'])
 def post_pessoas() -> Response:
@@ -51,8 +57,6 @@ def post_pessoas() -> Response:
     if type(stack) is list:
         stack = ",".join(stack)
 
-    values = (nome, apelido, nascimento, stack)
-
     try:
 
         cur = conn.cursor()
@@ -64,7 +68,8 @@ def post_pessoas() -> Response:
         """
 
         pessoa_uuid = str(uuid.uuid4())
-        values = (pessoa_uuid,) + values
+
+        values = (pessoa_uuid, nome, apelido, nascimento, stack)
 
         cur.execute(query, values)
         conn.commit()
@@ -91,7 +96,7 @@ def post_pessoas() -> Response:
 def get_pessoas_id(id: str) -> Response:
 
     try:
-        conn = psycopg2.connect(**database_conn)
+        # conn = psycopg2.connect(**database_conn)
         cur = conn.cursor()
 
         query = """
@@ -124,8 +129,6 @@ def get_pessoas_id(id: str) -> Response:
     except Exception as err:
         return Response(status=500)
 
-    return Response(status=200)
-
 
 @app.route('/pessoas', methods=['GET'])
 def get_pessoas() -> Response:
@@ -136,7 +139,7 @@ def get_pessoas() -> Response:
     termo = f"%{request.args['t']}%"
 
     try:
-        conn = psycopg2.connect(**database_conn)
+        # conn = psycopg2.connect(**database_conn)
         cur = conn.cursor()
 
         query = """
@@ -144,7 +147,8 @@ def get_pessoas() -> Response:
             FROM pessoas 
             WHERE nome like %s
                 or apelido like %s
-                or stack like %s;
+                or stack like %s
+            LIMIT 50;
         """
 
         cur.execute(query, (termo,termo,termo))
@@ -166,6 +170,7 @@ def get_pessoas() -> Response:
                 }
             )
 
+        # return jsonify(pessoas)
         return Response(
             status=200,
             response=json.dumps(pessoas),
@@ -182,7 +187,7 @@ def get_pessoas() -> Response:
 def get_contagem_pessoas() -> Response:
 
     try:
-        conn = psycopg2.connect(**database_conn)
+        # conn = psycopg2.connect(**database_conn)
         cur = conn.cursor()
 
         query = """
@@ -197,6 +202,7 @@ def get_contagem_pessoas() -> Response:
 
         cur.close()
 
+        # return jsonify(resultado[0])
         return Response(
             status=200,
             response=f"{resultado[0]}",
@@ -209,5 +215,5 @@ def get_contagem_pessoas() -> Response:
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=False, threaded=False, port=80)
+    app.run(host='0.0.0.0', debug=False, threaded=False, port=int(API_PORT))
 
